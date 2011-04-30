@@ -90,6 +90,13 @@ def channel_msg(sender, channel, msg):
 				omegle.disconnect()
 			else:
 				irc.notice(user, 'ACCESS DENIED')
+		elif msg == '.om':
+			if user_allowed(irc.users[channel][user]):
+				if omegle.status == 'connected':
+					omegle.disconnect()
+				omegle.connect()
+			else:
+				irc.notice(user, 'ACCESS DENIED FGT')
 		elif msg == '!help':
 			if '@' in irc.users[channel][user]:
 				irc.notice(user, 'Omegle operator commands: !allow all|voice|op, !quit, !pyborg on|off')
