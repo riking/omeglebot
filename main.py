@@ -145,7 +145,9 @@ def channel_msg(sender, channel, msg):
 					irc.notice(user, 'Omegle chat is disconnected!')
 			else:
 				irc.notice(user, 'ACCESS DENIED')
-	
+		elif msg == '!pyborg status':
+			irc.notice(user, 'pyborg is '+('on' if pyborg_on else 'off')
+		
 		if user in irc.users[channel].keys() and '@' in irc.users[channel][user]: #user is op in the channel the message came from?
 			if msg == '!quit':
 				irc.quit()
