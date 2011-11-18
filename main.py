@@ -110,6 +110,7 @@ def private_msg(sender, msg):
 		irc.send_raw(msg)
 
 def channel_msg(sender, channel, msg):
+	global pyborg_on
 	user = sender[0:sender.find('!')]
 	
 	if channel == omegle_channel:
@@ -146,7 +147,7 @@ def channel_msg(sender, channel, msg):
 			else:
 				irc.notice(user, 'ACCESS DENIED')
 		elif msg == '!pyborg status':
-			irc.notice(user, 'pyborg is '+('on' if pyborg_on else 'off')
+			irc.notice(user, 'pyborg is '+('on' if pyborg_on else 'off'))
 		
 		if user in irc.users[channel].keys() and '@' in irc.users[channel][user]: #user is op in the channel the message came from?
 			if msg == '!quit':
@@ -161,7 +162,6 @@ def channel_msg(sender, channel, msg):
 					irc.notice(user, 'Unknown allow mode \'%s\'' % (new_allow))
 					irc.notice(user, 'Allow modes are all, voice or op')
 			elif msg[:msg.find(' ')+1] == '!pyborg ':
-				global pyborg_on
 				if msg[msg.find(' ')+1:] == 'on':
 					pyborg_on = True
 					irc.notice(user, 'pyborg is now on')
@@ -174,6 +174,8 @@ def channel_msg(sender, channel, msg):
 				io_module.commanddict = {}
 				io_module.commandlist = ''
 				pyborg.do_commands(io_module, msg, (), True)
+		elif msg == '!quit' or msg[:msg.find(' ')+1] == '!allow ' or msg[:msg.find(' ')+1] == '!pyborg ':
+			irc.notice(user, 'ACCESS DENIED')
 		
 def omegle_connected():
 	if omegle_lock.acquire(1):
