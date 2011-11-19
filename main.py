@@ -91,7 +91,9 @@ def run_pyborg_thread():
 			pyborg.process_msg(io_module, msg, 100, True, ())
 		except:
 			print traceback.format_exc()
-			pyborg_queue.task_done();
+			irc.msg(omegle_channel,"Thread creation failed. Exiting.")
+			print "Thread creation failed. Exiting."
+			raise SystemExit
 	
 def write_log_index():
 	index_file = open('logindex', 'w')
