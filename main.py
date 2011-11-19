@@ -4,11 +4,18 @@ from pyborg import pyborg
 import pyborg as pyborgmodule
 import ConfigParser
 from datetime import datetime, date, time
+import threading
+from threading import Thread, Lock
+from Queue import Queue
+from time import sleep
+import traceback
 
 config = ConfigParser.RawConfigParser()
 omegle = Omegle()
+omegle_lock = Lock()
 irc = Irc()
 pyborg = pyborg()
+pyborg_queue = Queue()
 pyborg_on = False
 
 class emptyclass:
@@ -59,7 +66,32 @@ def main():
 		# if we couldnt open or read the index then start at 0
 		log_index = 0
 	
+	global irc_thread
+	irc_thread = Thread(target=run_irc_thread)
+	irc_thread.setDaemon(True)
+	irc_thread.start()
+	
+	global pyborg_thread
+	pyborg_thread = Thread(target=run_pyborg_thread)
+	pyborg_thread.setDaemon(True)
+	pyborg_thread.start();
+	
+	while irc_thread.isAlive():
+		sleep(60)
+	
+def run_irc_thread():
 	irc.connect('irc.esper.net', 6667)
+	
+def run_pyborg_thread():
+	while True:
+		msg = pyborg_queue.get();
+		io_module = emptyclass()
+		io_module.output = pyborg_omegle_output
+		try:
+			pyborg.process_msg(io_module, msg, 100, True, ())
+		except:
+			print traceback.format_exc()
+		pyborg_queue.task_done()
 	
 def write_log_index():
 	index_file = open('logindex', 'w')
@@ -73,10 +105,11 @@ def ready():
 
 def private_msg(sender, msg):
 	user = sender[0:sender.find('!')]
-	if '@' in irc.users[omegle_channel][user]: #user is op in the channel the message came from?
+	if user in irc.users[omegle_channel] and '@' in irc.users[omegle_channel][user]: #user is op in the channel the message came from?
 		irc.send_raw(msg)
 
 def channel_msg(sender, channel, msg):
+	global pyborg_on
 	user = sender[0:sender.find('!')]
 	
 	if channel == omegle_channel:
@@ -112,7 +145,19 @@ def channel_msg(sender, channel, msg):
 					irc.notice(user, 'Omegle chat is disconnected!')
 			else:
 				irc.notice(user, 'ACCESS DENIED')
-	
+		elif msg[0] == '^':
+			if user_allowed(irc.users[channel][user]):
+				if omegle.status == 'connected':
+					#omegle_log.write('You: ' + msg[1:] + '\n')
+					#omegle.msg(msg[1:])
+					pyborg_queue.put(msg[1:])
+				else:
+					irc.notice(user, 'Omegle chat is disconnected!')
+			else:
+				irc.notice(user, 'ACCESS DENIED')
+		elif msg == '!pyborg status':
+			irc.notice(user, 'pyborg is '+('on' if pyborg_on else 'off'))
+		
 		if user in irc.users[channel].keys() and '@' in irc.users[channel][user]: #user is op in the channel the message came from?
 			if msg == '!quit':
 				irc.quit()
@@ -126,7 +171,6 @@ def channel_msg(sender, channel, msg):
 					irc.notice(user, 'Unknown allow mode \'%s\'' % (new_allow))
 					irc.notice(user, 'Allow modes are all, voice or op')
 			elif msg[:msg.find(' ')+1] == '!pyborg ':
-				global pyborg_on
 				if msg[msg.find(' ')+1:] == 'on':
 					pyborg_on = True
 					irc.notice(user, 'pyborg is now on')
@@ -139,26 +183,31 @@ def channel_msg(sender, channel, msg):
 				io_module.commanddict = {}
 				io_module.commandlist = ''
 				pyborg.do_commands(io_module, msg, (), True)
+		elif msg == '!quit' or msg[:msg.find(' ')+1] == '!allow ' or msg[:msg.find(' ')+1] == '!pyborg ':
+			irc.notice(user, 'ACCESS DENIED')
 		
 def omegle_connected():
-	global log_index
-	global irc_log
-	irc_log = open(log_path.replace('$1', 'irc').replace('$2', str(log_index)), 'w')
-	irc_log.write('#Log started at %s\n' % (datetime.utcnow().strftime('%d/%m/%y %H:%M:%S')))
-	global omegle_log
-	omegle_log = open(log_path.replace('$1', 'omegle').replace('$2', str(log_index)), 'w')
-	omegle_log.write('#Log started at %s\n' % (datetime.utcnow().strftime('%d/%m/%y %H:%M:%S')))
+	if omegle_lock.acquire(1):
+		global log_index
+		global irc_log
+		irc_log = open(log_path.replace('$1', 'irc').replace('$2', str(log_index)), 'w')
+		irc_log.write('#Log started at %s\n' % (datetime.utcnow().strftime('%d/%m/%y %H:%M:%S')))
+		global omegle_log
+		omegle_log = open(log_path.replace('$1', 'omegle').replace('$2', str(log_index)), 'w')
+		omegle_log.write('#Log started at %s\n' % (datetime.utcnow().strftime('%d/%m/%y %H:%M:%S')))
 	
-	log_index = log_index + 1
-	write_log_index()
+		log_index = log_index + 1
+		write_log_index()
 	
-	irc.msg(omegle_channel, status_color + 'Connected!')
+		irc.msg(omegle_channel, status_color + 'Connected!')
 	
 def omegle_disconnected(msg = ''):
 	if msg == '':
 		irc.msg(omegle_channel, status_color + 'Disconnected!')
 	else:
-		irc.msg(omegle_channel, status_color + 'Disconnected! (%s)' % (msg))	
+		irc.msg(omegle_channel, status_color + 'Disconnected! (%s)' % (msg))
+
+	pyborg_wait()		
 				
 	if msg == 'strangerDisconnected':
 		omegle_log.write('Your conversational partner has disconnected.\n')
@@ -171,14 +220,14 @@ def omegle_disconnected(msg = ''):
 	irc_log.close()
 	omegle_log.write('#Log finished at %s\n' % (datetime.utcnow().strftime('%d/%m/%y %H:%M:%S')))
 	omegle_log.close()
+	omegle_lock.release()
 		
 def omegle_msg(msg):
 	print repr(msg)
 	irc.msg(omegle_channel, msg_color + msg)
 	
-	io_module = emptyclass()
-	io_module.output = pyborg_omegle_output
-	pyborg.process_msg(io_module, msg, pyborg_on * 100, True, ())
+	if pyborg_on:
+		pyborg_queue.put(msg);
 	
 	if omegle.status == 'connected':
 		omegle_log.write('Stranger: ' + msg + '\n')
@@ -191,7 +240,12 @@ def pyborg_omegle_output(msg, args):
 		omegle_log.write('You: ' + msg + '\n')
 		omegle.msg(msg)
 		irc.msg(omegle_channel, pyborg_color + msg)
-	
+
+def pyborg_wait():
+	if not pyborg_queue.empty():
+		irc.msg(omegle_channel, status_color + "Waiting for pyborg to finish.")
+		pyborg_queue.join()
+
 def omegle_error(msg):
 	print msg
 	irc.msg(omegle_channel, status_color + 'Error!')

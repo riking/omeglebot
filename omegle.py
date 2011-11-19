@@ -28,9 +28,10 @@ class Omegle:
 	on_disconnected = Event()
 	on_msg = Event()
 	on_error = Event()
+	sock = 0
 	
 	def connect(self):
-		if self.status == 'disconnected':
+		if self.status == 'disconnected' and self.sock == 0:
 			self.status == 'connecting'
 			thread.start_new_thread(self.event_loop, ())
 		
@@ -45,6 +46,7 @@ class Omegle:
 				# if we receive nothing then we probably got disconnected
 				c = self.sock.recv(1)
 				if c == '': # if we got nothing then we probably disconnected earlier
+					self.sock = 0;
 					self.on_disconnected.call()
 					self.status = 'disconnected'
 					return
@@ -68,6 +70,7 @@ class Omegle:
 					self.on_msg.call(msg)
 				elif opcode == 'd': # stranger disconnected
 					self.sock.close()
+					self.sock = 0;
 					self.on_disconnected.call('strangerDisconnected')
 					self.status = 'disconnected'
 					return
@@ -81,14 +84,14 @@ class Omegle:
 			self.status = 'disconnected'
 				
 	def msg(self, msg):
-		if self.status == 'connected':
+		if self.status == 'connected' and self.sock != 0:
 			try:
 				self.sock.send('\x01s' + chr(len(msg)>>8) + chr(len(msg)&0xFF) + msg)
 			except:
 				self.on_error.call(traceback.format_exc())
 				
 	def disconnect(self):
-		if self.status == 'connected':
+		if self.status == 'connected' and self.sock != 0:
 			#self.status = 'disconnected'
 			try:
 				# send a disconnect packet and just wait for the event loop to die due to disconnection
