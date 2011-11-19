@@ -91,7 +91,7 @@ def run_pyborg_thread():
 			pyborg.process_msg(io_module, msg, 100, True, ())
 		except:
 			print traceback.format_exc()
-		pyborg_queue.task_done();
+			pyborg_queue.task_done();
 	
 def write_log_index():
 	index_file = open('logindex', 'w')
@@ -231,6 +231,7 @@ def pyborg_omegle_output(msg, args):
 		omegle_log.write('You: ' + msg + '\n')
 		omegle.msg(msg)
 		irc.msg(omegle_channel, pyborg_color + msg)
+	pyborg_queue.task_done()
 
 def pyborg_wait():
 	if not pyborg_queue.empty():
