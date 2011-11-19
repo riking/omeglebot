@@ -243,7 +243,6 @@ def pyborg_wait():
 def omegle_error(msg):
 	print msg
 	irc.msg(omegle_channel, status_color + 'Error!')
-	pyborg_wait()
 	'''for line in msg.split('\n'):
 		if line != '':
 			for user, modes in irc.users[omegle_channel].iteritems():
