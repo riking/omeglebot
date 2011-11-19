@@ -91,9 +91,7 @@ def run_pyborg_thread():
 			pyborg.process_msg(io_module, msg, 100, True, ())
 		except:
 			print traceback.format_exc()
-			irc.msg(omegle_channel,"Thread creation failed. Exiting.")
-			print "Thread creation failed. Exiting."
-			raise SystemExit
+			pyborg_queue.task_done()
 	
 def write_log_index():
 	index_file = open('logindex', 'w')
@@ -107,7 +105,7 @@ def ready():
 
 def private_msg(sender, msg):
 	user = sender[0:sender.find('!')]
-	if '@' in irc.users[omegle_channel][user]: #user is op in the channel the message came from?
+	if user in irc.users[omegle_channel] and '@' in irc.users[omegle_channel][user]: #user is op in the channel the message came from?
 		irc.send_raw(msg)
 
 def channel_msg(sender, channel, msg):
