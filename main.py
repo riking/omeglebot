@@ -107,8 +107,7 @@ def ready():
 
 def private_msg(sender, msg):
 	user = sender[0:sender.find('!')]
-	#if '@' in irc.users[omegle_channel][user]: #user is op in the channel the message came from?
-	if '@' in irc.users[omegle_channel][user] and user == "Risugami":
+	if '@' in irc.users[omegle_channel][user]: #user is op in the channel the message came from?
 		irc.send_raw(msg)
 
 def channel_msg(sender, channel, msg):

@@ -1,0 +1,20 @@
+[IRC]
+nick=
+ident=
+name=
+
+[Omegle]
+channel=
+allow=all
+status_color=15,01
+msg_color=11,01
+pyborg_color=05,01
+
+[Logging]
+path=
+url=
+timestamp=M D
+
+[NickServ]
+identify=
+password=
