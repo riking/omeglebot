@@ -148,6 +148,16 @@ def channel_msg(sender, channel, msg):
 					irc.notice(user, 'Omegle chat is disconnected!')
 			else:
 				irc.notice(user, 'ACCESS DENIED')
+		elif msg[0] == '^':
+			if user_allowed(irc.users[channel][user]):
+				if omegle.status == 'connected':
+					#omegle_log.write('You: ' + msg[1:] + '\n')
+					#omegle.msg(msg[1:])
+					pyborg_queue.put(msg[1:])
+				else:
+					irc.notice(user, 'Omegle chat is disconnected!')
+			else:
+				irc.notice(user, 'ACCESS DENIED')
 		elif msg == '!pyborg status':
 			irc.notice(user, 'pyborg is '+('on' if pyborg_on else 'off'))
 		
@@ -243,7 +253,6 @@ def pyborg_wait():
 def omegle_error(msg):
 	print msg
 	irc.msg(omegle_channel, status_color + 'Error!')
-	pyborg_wait()
 	'''for line in msg.split('\n'):
 		if line != '':
 			for user, modes in irc.users[omegle_channel].iteritems():
