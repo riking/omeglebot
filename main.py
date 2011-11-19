@@ -196,7 +196,9 @@ def omegle_disconnected(msg = ''):
 	if msg == '':
 		irc.msg(omegle_channel, status_color + 'Disconnected!')
 	else:
-		irc.msg(omegle_channel, status_color + 'Disconnected! (%s)' % (msg))	
+		irc.msg(omegle_channel, status_color + 'Disconnected! (%s)' % (msg))
+
+	pyborg_wait()		
 				
 	if msg == 'strangerDisconnected':
 		omegle_log.write('Your conversational partner has disconnected.\n')
@@ -210,8 +212,6 @@ def omegle_disconnected(msg = ''):
 	omegle_log.write('#Log finished at %s\n' % (datetime.utcnow().strftime('%d/%m/%y %H:%M:%S')))
 	omegle_log.close()
 	omegle_lock.release()
-	
-	pyborg_queuejoin()
 		
 def omegle_msg(msg):
 	print repr(msg)
@@ -231,9 +231,8 @@ def pyborg_omegle_output(msg, args):
 		omegle_log.write('You: ' + msg + '\n')
 		omegle.msg(msg)
 		irc.msg(omegle_channel, pyborg_color + msg)
-	pyborg_queue.task_done()
 
-def pyborg_queuejoin():
+def pyborg_wait():
 	if not pyborg_queue.empty():
 		irc.msg(omegle_channel, status_color + "Waiting for pyborg to finish.")
 		pyborg_queue.join()
@@ -241,7 +240,7 @@ def pyborg_queuejoin():
 def omegle_error(msg):
 	print msg
 	irc.msg(omegle_channel, status_color + 'Error!')
-	pyborg_queuejoin()
+	pyborg_wait()
 	'''for line in msg.split('\n'):
 		if line != '':
 			for user, modes in irc.users[omegle_channel].iteritems():
