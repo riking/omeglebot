@@ -67,12 +67,10 @@ def filter_message(message, bot):
 		pass
 
 	message = message.replace(";", ",")
-	message = message.replace("?", " ? ")
-	message = message.replace("!", " ! ")
-	message = message.replace(".", " . ")
-	message = message.replace(",", " , ")
-	message = message.replace("'", " ' ")
-	message = message.replace(":", " : ")
+	message = message.replace("?", " ? ").replace("!", " ! ").replace(".", " . ")
+	message = message.replace(",", " , ").replace("'", " ' ").replace(":", " : ")
+	message = message
+	message = message
 
 	# Find ! and ? and append full stops.
 #	message = message.replace(". ", ".. ")
@@ -1002,6 +1000,8 @@ class pyborg:
 
 		#return as string..
 		return "".join(sentence)
+	def learn_dirty(self, body):
+		self.learn(filter_message(body,self))
 
 	def learn(self, body, num_context=1):
 		"""

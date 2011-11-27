@@ -17,6 +17,9 @@ irc = Irc()
 pyborg = pyborg()
 pyborg_queue = Queue()
 pyborg_on = False
+pyborg_waiting = False
+owner="riking"
+owner=owner.lower()
 
 class emptyclass:
 	pass
@@ -80,7 +83,7 @@ def main():
 		sleep(60)
 	
 def run_irc_thread():
-	irc.connect('irc.esper.net', 6667)
+	irc.connect('irc.freenode.net', 6667)
 	
 def run_pyborg_thread():
 	while True:
@@ -105,11 +108,12 @@ def ready():
 
 def private_msg(sender, msg):
 	user = sender[0:sender.find('!')]
-	if user in irc.users[omegle_channel] and '@' in irc.users[omegle_channel][user]: #user is op in the channel the message came from?
+	if user.lower() == owner : #cannot trust ops. only self.
 		irc.send_raw(msg)
 
 def channel_msg(sender, channel, msg):
 	global pyborg_on
+	global owner
 	user = sender[0:sender.find('!')]
 	
 	if channel == omegle_channel:
@@ -147,7 +151,7 @@ def channel_msg(sender, channel, msg):
 				irc.notice(user, 'ACCESS DENIED')
 		elif msg[0] == '^':
 			if user_allowed(irc.users[channel][user]):
-				if omegle.status == 'connected':
+				if omegle.status == 'connected' and not pyborg_waiting:
 					#omegle_log.write('You: ' + msg[1:] + '\n')
 					#omegle.msg(msg[1:])
 					pyborg_queue.put(msg[1:])
@@ -158,18 +162,18 @@ def channel_msg(sender, channel, msg):
 		elif msg == '!pyborg status':
 			irc.notice(user, 'pyborg is '+('on' if pyborg_on else 'off'))
 		
-		if user in irc.users[channel].keys() and '@' in irc.users[channel][user]: #user is op in the channel the message came from?
+		if (user in irc.users[channel].keys() and '@' in irc.users[channel][user]) or (user.lower()==owner): #ops or owner
 			if msg == '!quit':
-				irc.quit()
+				irc.quit("Saving & Quitting")
 			if msg[:msg.find(' ')+1] == '!allow ':
 				new_allow = msg[msg.find(' ')+1:]
-				if new_allow == 'all' or new_allow == 'voice' or new_allow == 'op':
+				if new_allow == 'all' or new_allow == 'voice' or new_allow == 'op' or new_allow == 'me':
 					global allow
 					allow = new_allow
 					irc.notice(user, 'Allow has been set to ' + allow)
 				else:
 					irc.notice(user, 'Unknown allow mode \'%s\'' % (new_allow))
-					irc.notice(user, 'Allow modes are all, voice or op')
+					irc.notice(user, 'Allow modes are all, voice, op, or me')
 			elif msg[:msg.find(' ')+1] == '!pyborg ':
 				if msg[msg.find(' ')+1:] == 'on':
 					pyborg_on = True
@@ -177,6 +181,11 @@ def channel_msg(sender, channel, msg):
 				else:
 					pyborg_on = False
 					irc.notice(user, 'pyborg is now off')
+			elif msg[:msg.find(' ')+1] == '!jion ':
+				print("joining "+msg[msg.find(' ')+1:])
+				irc.join(msg[msg.find(' ')+1:])
+			elif msg[:msg.find(' ')+1] == '!prat ':
+				irc.send_raw("PART "+msg[msg.find(' ')+1:])
 			elif msg[0] == '!':
 				io_module = emptyclass()
 				io_module.output = pyborg_irc_output
@@ -185,6 +194,10 @@ def channel_msg(sender, channel, msg):
 				pyborg.do_commands(io_module, msg, (), True)
 		elif msg == '!quit' or msg[:msg.find(' ')+1] == '!allow ' or msg[:msg.find(' ')+1] == '!pyborg ':
 			irc.notice(user, 'ACCESS DENIED')
+		else:
+			print user.lower()
+	else:
+		pyborg.learn_dirty(msg)
 		
 def omegle_connected():
 	if omegle_lock.acquire(1):
@@ -243,8 +256,10 @@ def pyborg_omegle_output(msg, args):
 
 def pyborg_wait():
 	if not pyborg_queue.empty():
+		pyborg_waiting=True
 		irc.msg(omegle_channel, status_color + "Waiting for pyborg to finish.")
 		pyborg_queue.join()
+		pyborg_waiting=False
 
 def omegle_error(msg):
 	print msg
@@ -260,6 +275,12 @@ def irc_output(channel, text):
 	if omegle.status == 'connected' and channel == omegle_channel:
 		irc_log.write(datetime.utcnow().strftime(timestamp_format) + ' ' + text + '\n')
 					
+def medpitch_output():
+	if omegle.status == 'connected':
+		omegle_log.write('You: ' + msg + '\n')
+		omegle.msg(msg)
+		irc.msg(omegle_channel, pyborg_color + msg)
+
 # user_allowed
 # is user allowed to talk to the omegler
 def user_allowed(modes):
@@ -269,6 +290,8 @@ def user_allowed(modes):
 		return '+' in modes or '@' in modes
 	elif allow == 'op':
 		return '@' in modes
+	elif allow == 'me':#:(
+		return False
 	else:
 		return False
 	
