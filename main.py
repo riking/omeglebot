@@ -17,6 +17,7 @@ irc = Irc()
 pyborg = pyborg()
 pyborg_queue = Queue()
 pyborg_on = False
+owner = ""
 
 class emptyclass:
 	pass
@@ -48,6 +49,8 @@ def main():
 	msg_color = '\x03' + config.get('Omegle', 'msg_color')
 	global pyborg_color
 	pyborg_color = '\x03' + config.get('Omegle', 'pyborg_color')
+	global owner
+	owner = config.get('Omegle', 'owner').lower()
 	
 	global log_path
 	log_path = config.get('Logging', 'path')
@@ -105,7 +108,7 @@ def ready():
 
 def private_msg(sender, msg):
 	user = sender[0:sender.find('!')]
-	if user in irc.users[omegle_channel] and '@' in irc.users[omegle_channel][user]: #user is op in the channel the message came from?
+	if (user.lower() == owner) or (user in irc.users[omegle_channel] and '@' in irc.users[omegle_channel][user]): #user is op in the omegle channel
 		irc.send_raw(msg)
 
 def channel_msg(sender, channel, msg):
@@ -114,17 +117,17 @@ def channel_msg(sender, channel, msg):
 	
 	if channel == omegle_channel:
 		if msg == '!connect':
-			if user_allowed(irc.users[channel][user]):
+			if user_allowed(channel,user):
 				omegle.connect()
 			else:
 				irc.notice(user, 'ACCESS DENIED')
 		elif msg == '!disconnect':
-			if user_allowed(irc.users[channel][user]):
+			if user_allowed(channel,user):
 				omegle.disconnect()
 			else:
 				irc.notice(user, 'ACCESS DENIED')
 		elif msg == '.om':
-			if user_allowed(irc.users[channel][user]):
+			if user_allowed(channel,user):
 				if omegle.status == 'connected':
 					omegle.disconnect()
 				omegle.connect()
@@ -134,9 +137,9 @@ def channel_msg(sender, channel, msg):
 			if '@' in irc.users[channel][user]:
 				irc.notice(user, 'Omegle operator commands: !allow all|voice|op, !quit, !pyborg on|off')
 			else:
-				irc.notice(user, '!connect connects to omegle, !disconnect disconnects the current omegle conversation. Channel messages prefixed with \'>\' are sent to the stranger. Only voiced users may use these commands')
+				irc.notice(user, '!connect connects to omegle, !disconnect disconnects the current omegle conversation. Channel messages prefixed with \'>\' are sent to the stranger. Only ' + allow + ' users may use these commands')
 		elif msg[0] == '>':
-			if user_allowed(irc.users[channel][user]):
+			if user_allowed(channel,user):
 				if omegle.status == 'connected':
 					omegle_log.write('You: ' + msg[1:] + '\n')
 					omegle.msg(msg[1:])
@@ -146,7 +149,7 @@ def channel_msg(sender, channel, msg):
 			else:
 				irc.notice(user, 'ACCESS DENIED')
 		elif msg[0] == '^':
-			if user_allowed(irc.users[channel][user]):
+			if user_allowed(channel,user):
 				if omegle.status == 'connected':
 					#omegle_log.write('You: ' + msg[1:] + '\n')
 					#omegle.msg(msg[1:])
@@ -167,9 +170,13 @@ def channel_msg(sender, channel, msg):
 					global allow
 					allow = new_allow
 					irc.notice(user, 'Allow has been set to ' + allow)
+				elif new_allow == 'owner' and user.lower() == owner:
+					global allow
+					allow = new_allow
+					irc.notice(user, 'Allow has been set to Owner Only.')
 				else:
 					irc.notice(user, 'Unknown allow mode \'%s\'' % (new_allow))
-					irc.notice(user, 'Allow modes are all, voice or op')
+					irc.notice(user, 'Allow modes are all, voice, op, and owner (only settable by owner)')
 			elif msg[:msg.find(' ')+1] == '!pyborg ':
 				if msg[msg.find(' ')+1:] == 'on':
 					pyborg_on = True
@@ -185,6 +192,8 @@ def channel_msg(sender, channel, msg):
 				pyborg.do_commands(io_module, msg, (), True)
 		elif msg == '!quit' or msg[:msg.find(' ')+1] == '!allow ' or msg[:msg.find(' ')+1] == '!pyborg ':
 			irc.notice(user, 'ACCESS DENIED')
+	else:
+		pyborg.learn_dirty(msg) # Joining other channels for dictionary-building.
 		
 def omegle_connected():
 	if omegle_lock.acquire(1):
@@ -206,19 +215,19 @@ def omegle_disconnected(msg = ''):
 		irc.msg(omegle_channel, status_color + 'Disconnected!')
 	else:
 		irc.msg(omegle_channel, status_color + 'Disconnected! (%s)' % (msg))
-
-	pyborg_wait()		
 				
 	if msg == 'strangerDisconnected':
 		omegle_log.write('Your conversational partner has disconnected.\n')
 	else:
 		omegle_log.write('You have disconnected.\n')
 			
+	pyborg_wait()
+
 	irc.msg(omegle_channel, status_color + log_url.replace('$1','irc').replace('$2',str(log_index-1)) + ' ' + log_url.replace('$1','omegle').replace('$2',str(log_index-1)))
 			
 	irc_log.write('#Log finished at %s\n' % (datetime.utcnow().strftime('%d/%m/%y %H:%M:%S')))
-	irc_log.close()
 	omegle_log.write('#Log finished at %s\n' % (datetime.utcnow().strftime('%d/%m/%y %H:%M:%S')))
+	irc_log.close()
 	omegle_log.close()
 	omegle_lock.release()
 		
@@ -262,9 +271,12 @@ def irc_output(channel, text):
 					
 # user_allowed
 # is user allowed to talk to the omegler
-def user_allowed(modes):
+def user_allowed(channel,user):
+	modes=irc.users[channel][user]
+	if user.lower() == owner: #always allow the owner
+		return True
 	if allow == 'all':
-		return True;
+		return True
 	elif allow == 'voice':
 		return '+' in modes or '@' in modes
 	elif allow == 'op':

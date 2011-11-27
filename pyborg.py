@@ -33,6 +33,8 @@ import struct
 import time
 import zipfile
 import re
+import string
+
 
 
 def filter_message(message, bot):
@@ -1002,6 +1004,9 @@ class pyborg:
 
 		#return as string..
 		return "".join(sentence)
+
+	def learn_dirty(self, body):
+		self.learn(filter(string.printable[:].__contains__, filter_message(body,self) ) ) # run message thru pyborg filter then non-printable filter, then learn it. NOTE: other string filters are available; this will only allow printable ascii
 
 	def learn(self, body, num_context=1):
 		"""

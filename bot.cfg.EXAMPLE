@@ -1,9 +1,11 @@
 [IRC]
+server=irc.esper.net
 nick=
 ident=
 name=
 
 [Omegle]
+owner=
 channel=
 allow=all
 status_color=15,01
