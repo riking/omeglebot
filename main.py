@@ -18,6 +18,7 @@ pyborg = pyborg()
 pyborg_queue = Queue()
 pyborg_on = False
 owner = ""
+allow = ""
 
 class emptyclass:
 	pass
@@ -113,6 +114,7 @@ def private_msg(sender, msg):
 
 def channel_msg(sender, channel, msg):
 	global pyborg_on
+	global allow
 	user = sender[0:sender.find('!')]
 	
 	if channel == omegle_channel:
@@ -167,11 +169,9 @@ def channel_msg(sender, channel, msg):
 			if msg[:msg.find(' ')+1] == '!allow ':
 				new_allow = msg[msg.find(' ')+1:]
 				if new_allow == 'all' or new_allow == 'voice' or new_allow == 'op':
-					global allow
 					allow = new_allow
 					irc.notice(user, 'Allow has been set to ' + allow)
 				elif new_allow == 'owner' and user.lower() == owner:
-					global allow
 					allow = new_allow
 					irc.notice(user, 'Allow has been set to Owner Only.')
 				else:
