@@ -125,7 +125,7 @@ class Irc:
 							self.on_output.call(params[0], '%s takes operator status from %s' % (user, params[i]))
 							i = i + 1
 					else:
-						self.msg(params[0], params[0] + ' ' + a + c)
+						# self.msg(params[0], params[0] + ' ' + a + c)
 				'''
 				if params[1][0] == '+':
 					for i in range(1,len(params[1])):
