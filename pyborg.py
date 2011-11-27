@@ -48,9 +48,11 @@ def filter_message(message, bot):
 	message = message.lower()
 
 	# remove garbage
+	message = filter(string.printable[:-5].__contains__,message) # remove all non-ascii & non-printable
 	message = message.replace("\"", "") # remove "s
 	message = message.replace("\n", " ") # remove newlines
 	message = message.replace("\r", " ") # remove carriage returns
+	
 
 	# remove matching brackets (unmatched ones are likely smileys :-) *cough*
 	# should except out when not found.
@@ -69,8 +71,6 @@ def filter_message(message, bot):
 	message = message.replace(";", ",")
 	message = message.replace("?", " ? ").replace("!", " ! ").replace(".", " . ")
 	message = message.replace(",", " , ").replace("'", " ' ").replace(":", " : ")
-	message = message
-	message = message
 
 	# Find ! and ? and append full stops.
 #	message = message.replace(". ", ".. ")
