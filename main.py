@@ -34,11 +34,14 @@ def main():
 	irc.nick = config.get('IRC', 'nick')
 	irc.ident = config.get('IRC', 'ident')
 	irc.realname = config.get('IRC', 'name')
+	global server
+	server = config.get('IRC', 'server')
 	
 	irc.on_ready += ready
 	irc.on_channel_msg += channel_msg
 	irc.on_output += irc_output
 	irc.on_private_msg += private_msg
+
 	
 	global omegle_channel
 	omegle_channel = config.get('Omegle', 'channel')
@@ -84,7 +87,7 @@ def main():
 		sleep(60)
 	
 def run_irc_thread():
-	irc.connect('irc.esper.net', 6667)
+	irc.connect(server, 6667)
 	
 def run_pyborg_thread():
 	while True:
